@@ -1,0 +1,42 @@
+{
+  "servers": [
+    {
+      "name": "Primary GeoServer",
+      "url": "https://geos.oceanwise.eu/geoserver/gwc/rest/seed",
+      "credentialFile": "D:\\Servers\\SDS03 Geos\\data\\secrets\\gwc_credential_primary.xml",
+      "wmsCapabilitiesUrl": "https://geos.oceanwise.eu/geoserver/wms?service=WMS&request=GetCapabilities"
+    }
+  ],
+  "layers": [
+    {
+      "name": "OceanWiseRCXL-EPSG-3857-Demo",
+      "gridset": "EPSG:3857",
+      "format": "image/png",
+      "minZoom": 0,
+      "maxZoom": 18,
+      "threads": 50,
+      "bboxOnlyMinZoom": 15,
+      "bboxFilesByZoom": {
+        "15": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3857_15.csv",
+        "16": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3857_16.csv",
+        "17": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3857_17.csv",
+        "18": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3857_18.csv"
+      }
+    },
+    {
+      "name": "OceanWiseRCXL-EPSG-3395-Demo",
+      "gridset": "EPSG:3395",
+      "format": "image/png",
+      "minZoom": 0,
+      "maxZoom": 18,
+      "threads": 50,
+      "bboxOnlyMinZoom": 15,
+      "bboxFilesByZoom": {
+        "15": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3395_15.csv",
+        "16": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3395_16.csv",
+        "17": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3395_17.csv",
+        "18": "D:\\Servers\\SDS03 Geos\\data\\bboxes\\rcxl_3395_18.csv"
+      }
+    }
+  ]
+}
