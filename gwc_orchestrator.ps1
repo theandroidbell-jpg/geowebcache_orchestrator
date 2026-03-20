@@ -431,7 +431,11 @@ foreach ($srv in $servers) {
         $defaultBBox = Get-DefaultBounds -SeedBaseUrl $seedBaseUrl -LayerName $layerName -Cred $cred -Insecure:$Insecure -GridSet $gridset -ServerCapsUrl $serverCapsUrl -LayerCapsUrl $layerCapsUrl
 
         $bboxOverrides = @{}
-        if ($layer.bboxFilesByZoom) { $bboxOverrides = $layer.bboxFilesByZoom }
+        if ($layer.bboxFilesByZoom) {
+            $layer.bboxFilesByZoom.PSObject.Properties | ForEach-Object {
+                $bboxOverrides[$_.Name] = $_.Value
+            }
+        }
 
         if ($minZoom -lt $bboxMin) {
             $lowStart=$minZoom; $lowStop=[Math]::Min($maxZoom, $bboxMin-1)
@@ -456,7 +460,7 @@ foreach ($srv in $servers) {
                 if ($bboxFile) {
                     $bboxes = Read-BBoxes $bboxFile
                 } else {
-                    $bboxes = @([pscustomobject]$defaultBBox)
+                    $bboxes = @($defaultBBox)
                 }
 
                 $i=0
