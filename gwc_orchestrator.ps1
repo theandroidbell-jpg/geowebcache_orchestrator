@@ -278,7 +278,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 
 # Best-effort global kill (many servers disallow DELETE; we never block on failure)
 function Kill-GwcTasksGlobal {
-    param([string]$SeedBaseUrl, [System.Management.Automation.PSCredential]$Cred, [switch]$Insecure)
+    param([string]$SeedBaseUrl, [System.Management.Automation.PSCredential]$Cred, [switch]$Insecure, [switch]$WhatIf)
     $url = "$SeedBaseUrl"
     Write-Host ("DELETE {0} (global kill)" -f $url)
     if ($WhatIf) { return }
@@ -314,7 +314,7 @@ function Wait-GwcIdle {
         $idle = $false
         $checkedAny = $false
 
-        # 1) Prefer layer XML endpoint
+        # 1) Prefer layer XML endpoint — parse <seedTask><status> elements
         try {
             if ($Insecure) {
                 add-type @"
@@ -328,27 +328,39 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
             $statusUrl = "$SeedBaseUrl/$Layer.xml"
             $resp = Invoke-WebRequest -Uri $statusUrl -Credential $Cred -UseBasicParsing
             $checkedAny = $true
-            if ($resp.Content -match "<ongoing>false</ongoing>") { $idle = $true }
+            $xml = [xml]$resp.Content
+            $activeTasks = @()
+            if ($xml.GeoWebCacheSeedTasks -and $xml.GeoWebCacheSeedTasks.seedTasks) {
+                $allTasks = @($xml.GeoWebCacheSeedTasks.seedTasks.seedTask)
+                $activeTasks = $allTasks | Where-Object { $_.status -eq 'RUNNING' -or $_.status -eq 'PENDING' }
+            }
+            if ($activeTasks.Count -eq 0) { $idle = $true }
         } catch { }
 
-        # 2) Global status endpoint (fallback)
+        # 2) Layer JSON endpoint (fallback) — long-array-array where index [3] is status (1=PENDING, 2=RUNNING)
         if (-not $idle) {
             try {
-                $url2 = "$SeedBaseUrl/../status"
+                $url2 = "$SeedBaseUrl/$Layer.json"
                 $resp2 = Invoke-WebRequest -Uri $url2 -Credential $Cred -UseBasicParsing
                 $checkedAny = $true
-                # idle if no <task> element present
-                if ($resp2.Content -notmatch "<task>") { $idle = $true }
+                $json2 = $resp2.Content | ConvertFrom-Json
+                $activeTasks2 = @()
+                if ($json2.'long-array-array') {
+                    # Each task array: index [3] = status code (0=ABORTED, 1=PENDING, 2=RUNNING, -1=DONE)
+                    $activeTasks2 = @($json2.'long-array-array' | Where-Object { $_[3] -eq 1 -or $_[3] -eq 2 })
+                }
+                if ($activeTasks2.Count -eq 0) { $idle = $true }
             } catch { }
         }
 
-        # 3) Layer HTML endpoint (legacy)
+        # 3) Layer HTML endpoint (legacy fallback)
         if (-not $idle) {
             try {
                 $url3 = "$SeedBaseUrl/$Layer"
                 $resp3 = Invoke-WebRequest -Uri $url3 -Credential $Cred -UseBasicParsing
                 $checkedAny = $true
-                if ($resp3.Content -match "No tasks are currently running") { $idle = $true }
+                if ($resp3.Content -match "No tasks" -or $resp3.Content -match "0 tasks" -or
+                    $resp3.Content -match "No tasks are currently running") { $idle = $true }
             } catch { }
         }
 
@@ -411,7 +423,7 @@ foreach ($srv in $servers) {
         Write-Host ("`nLayer: {0} ({1} z {2}-{3})" -f $layerName, $gridset, $minZoom, $maxZoom)
 
         if ($KillExisting) {
-            Kill-GwcTasksGlobal -SeedBaseUrl $seedBaseUrl -Cred $cred -Insecure:$Insecure
+            Kill-GwcTasksGlobal -SeedBaseUrl $seedBaseUrl -Cred $cred -Insecure:$Insecure -WhatIf:$WhatIf
             Wait-GwcIdle        -SeedBaseUrl $seedBaseUrl -Layer $layerName -Cred $cred -PollSeconds 10 -Insecure:$Insecure
         }
 
